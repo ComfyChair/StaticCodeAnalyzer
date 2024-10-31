@@ -23,16 +23,19 @@ class CodeIssue:
     """Data class that wraps all relevant information of an issue detected in static code analysis.
 
     Attributes:
+        path:    The path of the analyzed file.
         line:    The code line this issue occurred on.
         type:    The :class:`IssueType` of the issue.
     """
+    path: str
     line: int
     type: IssueType
 
 class BaseCodeAnalyzer(ABC):
-    """ Definition of an interface for static code analysis.
+    """ Definition of an interface for static code analysis of python scripts.
     
     Attributes:
+        path:                   The path to the file being analyzed.
         codebase:               The codebase that is being analyzed.
         total_lines:            The number of lines in the codebase.
         single_line_analyzer:    A static dictionary mapping each :class:`IssueType` that can be detected from a single
@@ -47,6 +50,7 @@ class BaseCodeAnalyzer(ABC):
         """ Initializer, encompasses reading code from file.
         :param path: The path to the file.
         """
+        self.path = path
         with open(path, "r") as file:
             self.codebase: List[str] = file.readlines()
         self.total_lines = len(self.codebase)
@@ -83,31 +87,34 @@ class BaseCodeAnalyzer(ABC):
             return line, ""
 
     @abstractmethod
-    def long_line(self, line_no: int) -> Optional[CodeIssue]:
+    def long_line(self, line_no: int, line: str) -> Optional[CodeIssue]:
         """ Create a Style Issue if the input line exceeds the 79 characters limit.
-        :param line_no: The line to analyze.
+        :param line: The line to analyze.
+        :param line_no: The number of the line to analyze.
         :return: A :class:`CodeIssue` object or :const:`None`.
         """
         pass
 
     @abstractmethod
-    def indentation(self, line_no: int) -> Optional[CodeIssue]:
+    def indentation(self, line_no: int, line: str) -> Optional[CodeIssue]:
         """ Create a Style Issue if the input line is not indented by a multiple of four.
-        :param line_no: The line to analyze.
+        :param line: The line to analyze.
+        :param line_no: The number of the line to analyze.
         :return: A :class:`CodeIssue` or :const:`None`.
         """
         ...
 
     @abstractmethod
-    def semicolon(self, line_no: int) -> Optional[CodeIssue]:
+    def semicolon(self, line_no: int, line: str) -> Optional[CodeIssue]:
         """ Create a Style Issue if the input line contains an unnecessary semicolon after a statement.
-        :param line_no: The line to analyze.
+        :param line: The line to analyze.
+        :param line_no: The number of the line to analyze.
         :return: A :class:`CodeIssue` or :const:`None`.
         """
         ...
 
     @abstractmethod
-    def missing_spaces(self, line_no: int) -> Optional[CodeIssue]:
+    def missing_spaces(self, line_no: int, line: str) -> Optional[CodeIssue]:
         """ Create a Style Issue if the input line contains an inline comment which is not separated with two spaces.
         :param line_no: The line to analyze.
         :return: A :class:`CodeIssue` or :const:`None`.
@@ -115,9 +122,10 @@ class BaseCodeAnalyzer(ABC):
         ...
 
     @abstractmethod
-    def todo(self, line_no: int) -> Optional[CodeIssue]:
+    def todo(self, line_no: int, line: str) -> Optional[CodeIssue]:
         """ Create a Style Issue if the input line contains a 'TODO' comment (any case).
-        :param line_no: The line to analyze.
+        :param line: The line to analyze.
+        :param line_no: The number of the line to analyze.
         :return: A :class:`CodeIssue` or :const:`None`.
         """
         ...
@@ -135,16 +143,18 @@ class BaseCodeAnalyzer(ABC):
         """
         line_by_line_types: Set[IssueType] = issue_types.intersection(self.single_line_analyzer.keys())
         bulk_types = issue_types.intersection(self.bulk_analyzer.keys())
-        for line_no in range(self.total_lines):
+        for line_no, line in enumerate(self.codebase, start = 1):
             for issue_type in line_by_line_types:
-                issue = self.single_line_analyzer[issue_type](line_no)
+                issue = self.single_line_analyzer[issue_type](line_no, line)
                 if issue:
                     self.found_issues.append(issue)
         for issue_type in bulk_types:
             self.found_issues.extend(self.bulk_analyzer[issue_type]())
 
-    def print_issues(self):
-        """ Print all :attr:`found_issues`, sorted by their line number. """
-        self.found_issues.sort(key=lambda i: i.line)
-        for issue in self.found_issues:
-            print(f"Line {issue.line}: {issue.type.name} {issue.type.value}")
+
+    def get_issues(self) -> List[CodeIssue]:
+        """ Return a list of all :attr:`found_issues`, sorted by their line number and IssueCode
+         :return: A sorted list of :class:`CodeIssue` objects.
+         """
+        self.found_issues.sort(key=lambda i: (i.line, i.type.name))
+        return self.found_issues
