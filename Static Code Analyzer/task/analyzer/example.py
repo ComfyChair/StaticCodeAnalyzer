@@ -11,3 +11,11 @@ print(very_big_number)
 def some_fun():
     print('NO TODO HERE;;')
     pass; # Todo something
+
+print('hello')
+print('hello');
+print('hello');;;
+print('hello');  # hello
+# hello hello hello;
+greeting = 'hello;'
+print('hello')  # ;
