@@ -4,8 +4,8 @@ Implementation: code_analyzer.py."""
 
 import enum
 from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple, Set, Optional
 from dataclasses import dataclass
+from typing import List, Dict, Tuple, Set, Optional
 
 
 class IssueType(enum.Enum):

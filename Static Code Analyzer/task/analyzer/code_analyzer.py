@@ -77,21 +77,33 @@ class CodeAnalyzer(BaseCodeAnalyzer):
                 count_blank = 0
         return found_issues
 
-def print_issues(issues: List[CodeIssue]) -> None:
+def print_issues(issues: List[CodeIssue]):
+    """ Print the provided list of issues.
+    :param issues: The list of issues to print.
+    """
     for issue in issues:
         print(f"{issue.path}: Line {issue.line}: {issue.type.name} {issue.type.value}")
 
 def analyze_single(path: str):
+    """ Analyze a single .py file.
+    :param path: The path of the file to analyze.
+    """
     analyzer = CodeAnalyzer(path)
     analyzer.analyze(set(IssueType))
     print_issues(analyzer.get_issues())
 
-def analyze_multi(paths: List[str]):
+def analyze_multi(directory: str):
+    """ Analyze all .py files in the given directory.
+    :param directory: The path to the directory to analyze.
+    """
     issues: List[CodeIssue] = []
-    for path in paths:
-        analyzer = CodeAnalyzer(path)
-        analyzer.analyze(set(IssueType))
-        issues.extend(analyzer.get_issues())
+    for root, dirs, filenames in os.walk(directory, followlinks=True):
+        for filename in filenames:
+            if filename.endswith(".py"):
+                file = os.path.join(root, filename)
+                analyzer = CodeAnalyzer(file)
+                analyzer.analyze(set(IssueType))
+                issues.extend(analyzer.get_issues())
     issues.sort(key=lambda issue: issue.path)
     print_issues(issues)
 
@@ -104,12 +116,7 @@ def main():
     if os.path.isfile(path) and path.endswith(".py"):
         analyze_single(path)
     elif os.path.isdir(path):
-        paths : List[str] = []
-        for root, dirs, filenames in os.walk(path, followlinks=True):
-            for filename in filenames:
-                if filename.endswith(".py"):
-                    paths.append(os.path.join(root, filename))
-        analyze_multi(paths)
+        analyze_multi(path)
     else:
         print(f"Path '{path}' does not contain a valid .py script")
 
