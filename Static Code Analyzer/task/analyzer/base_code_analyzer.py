@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pprint import pprint
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Set
 
 from code_issue import IssueType, CodeIssue
 
@@ -11,14 +11,17 @@ class BaseCodeAnalyzer(ABC):
     def __init__(self, path: str):
         with open(path, "r") as file:
             self.code_base : List[str] = file.readlines()
+        self.total_lines = len(self.code_base)
         self.found_issues : List[CodeIssue] = []
-        self.issue_methods : Dict[str, callable] = {
-            "S001": self.long_lines,
-            "S002": self.indentation,
-            "S003": self.semicolon,
-            "S004": self.missing_spaces,
-            "S005": self.todo,
-            "S006": self.blank_lines,
+        self.single_line_methods : Dict[IssueType, callable] = {
+            IssueType.S001: self.long_line,
+            IssueType.S002: self.indentation,
+            IssueType.S003: self.semicolon,
+            IssueType.S004: self.missing_spaces,
+            IssueType.S005: self.todo,
+        }
+        self.bulk_methods : Dict[IssueType, callable] = {
+            IssueType.S006: self.blank_lines,
         }
 
     @classmethod
@@ -35,38 +38,46 @@ class BaseCodeAnalyzer(ABC):
             return line, ""
 
     @abstractmethod
-    def long_lines(self, issue_type: IssueType) -> List[CodeIssue]:
+    def long_line(self, line_no: int) -> CodeIssue | None:
         """Creates a Style Issue for every line that exceeds the 79 characters limit."""
         ...
 
     @abstractmethod
-    def indentation(self, issue_type: IssueType) -> List[CodeIssue]:
+    def indentation(self, line_no: int) -> CodeIssue | None:
         """Creates a Style Issue for every line that is not indented by a multiple of four."""
         ...
 
     @abstractmethod
-    def semicolon(self, issue_type: IssueType) -> List[CodeIssue]:
+    def semicolon(self, line_no: int) -> CodeIssue | None:
         """Creates a Style Issue for every line that contains an unnecessary semicolon after a statement."""
         ...
 
     @abstractmethod
-    def missing_spaces(self, issue_type: IssueType) -> List[CodeIssue]:
+    def missing_spaces(self, line_no: int) -> CodeIssue | None:
         """Creates a Style Issue for every line that contains inline comment which is not separated with two spaces."""
         ...
 
     @abstractmethod
-    def todo(self, issue_type: IssueType) -> List[CodeIssue]:
+    def todo(self, line_no: int) -> CodeIssue | None:
         ...
 
     @abstractmethod
-    def blank_lines(self, issue_type: IssueType) -> List[CodeIssue]:
+    def blank_lines(self) -> List[CodeIssue]:
         ...
 
-    def analyze(self, types: List[IssueType]):
+    def analyze(self, issue_types: Set[IssueType]):
         """Initializes search for issues of the given types
         :returns a list of code issues, sorted by line number"""
-        for issue_type in types:
-            self.found_issues.extend(self.issue_methods[issue_type.name](issue_type))
+        line_by_line_types : Set[IssueType] = issue_types.intersection(self.single_line_methods.keys())
+        bulk_types = issue_types.intersection(self.bulk_methods.keys())
+        for line_no in range(self.total_lines):
+            for issue_type in line_by_line_types:
+                issue = self.single_line_methods[issue_type](line_no)
+                if issue:
+                    self.found_issues.append(issue)
+        for issue_type in bulk_types:
+            self.found_issues.extend(self.bulk_methods[issue_type]())
+
 
     def print_issues(self):
         self.found_issues.sort(key=lambda i: i.line)
