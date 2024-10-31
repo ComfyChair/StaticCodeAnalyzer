@@ -3,7 +3,8 @@
 
 import os.path
 import argparse
-from typing import List, Optional
+import re
+from typing import List, Optional, Set
 
 from code_analyzer_base import BaseCodeAnalyzer, IssueType, CodeIssue
 
@@ -62,6 +63,38 @@ class CodeAnalyzer(BaseCodeAnalyzer):
             # we have a comment that contains a 'todo'
             return CodeIssue(self.path, line_no, IssueType.S005)
 
+    def too_many_spaces(self, line_no: int, line: str) -> Optional[CodeIssue]:
+        """ Create a Style Issue if the line contains a class or function definition
+            keyword followed by more than one space.
+        :param line: The line to analyze.
+        :param line_no: The number of the line to analyze.
+        :return: A :class:`CodeIssue` or :const:`None`.
+        """
+        pattern = re.compile(r"""
+        (def|class)       # keyword
+        \s{2}\s*        # 2 or more spaces
+        (\w+)           # function name or class name
+        """, re.VERBOSE)
+        match = pattern.match(line.strip())
+        if match:
+            name = match.groups()[1]
+            return CodeIssue(self.path, line_no, IssueType.S007, name)
+
+    def camel_case_class(self, line_no: int, line: str) -> Optional[CodeIssue]:
+        class_match = re.compile(r"class\s+(\w+)\(").match(line.strip())
+        if class_match:
+            class_name = class_match.groups()[0]
+            no_camel_match = re.compile(r"([^A-Z][a-z]+)+")
+            if no_camel_match:
+                return CodeIssue(self.path, line_no, IssueType.S008, class_name)
+
+    def snake_case_fct(self, line_no: int, line: str) -> Optional[CodeIssue]:
+        pattern = re.compile(r"def\s+(^[_a-z]+)")
+        match = pattern.match(line.strip())
+        if match:
+            name = match.groups()[0]
+            return CodeIssue(self.path, line_no, IssueType.S009, name)
+
     def blank_lines(self) -> List[CodeIssue]:
         """ Create a Style Issue for every code preceded by more than two empty lines.
         :return: The list of found :class:`CodeIssue` objects.
@@ -82,18 +115,24 @@ def print_issues(issues: List[CodeIssue]):
     :param issues: The list of issues to print.
     """
     for issue in issues:
-        print(f"{issue.path}: Line {issue.line}: {issue.type.name} {issue.type.value}")
+        if issue.str_arg:
+            print(f"arg = {issue.str_arg}")
+            print(f"{issue.path}: Line {issue.line}: {issue.type.name} {(issue.type.value).format(issue.str_arg)}")
+        else:
+            print(f"{issue.path}: Line {issue.line}: {issue.type.name} {issue.type.value}")
 
-def analyze_single(path: str):
+def analyze_single(path: str, issue_types: Set[IssueType]):
     """ Analyze a single .py file.
+    :param issue_types: The list of :class:IssueType that should be checked.
     :param path: The path of the file to analyze.
     """
     analyzer = CodeAnalyzer(path)
-    analyzer.analyze(set(IssueType))
+    analyzer.analyze(issue_types)
     print_issues(analyzer.get_issues())
 
-def analyze_multi(directory: str):
+def analyze_multi(directory: str, issue_types: Set[IssueType]):
     """ Analyze all .py files in the given directory.
+    :param issue_types: The list of :class:IssueType that should be checked.
     :param directory: The path to the directory to analyze.
     """
     issues: List[CodeIssue] = []
@@ -102,7 +141,7 @@ def analyze_multi(directory: str):
             if filename.endswith(".py"):
                 file = os.path.join(root, filename)
                 analyzer = CodeAnalyzer(file)
-                analyzer.analyze(set(IssueType))
+                analyzer.analyze(issue_types)
                 issues.extend(analyzer.get_issues())
     issues.sort(key=lambda issue: issue.path)
     print_issues(issues)
@@ -113,10 +152,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("path")
     path: str = parser.parse_args().path
+    issue_types : Set[IssueType] = {IssueType.S007, IssueType.S008, IssueType.S009}
     if os.path.isfile(path) and path.endswith(".py"):
-        analyze_single(path)
+        analyze_single(path, issue_types)
     elif os.path.isdir(path):
-        analyze_multi(path)
+        analyze_multi(path, issue_types)
     else:
         print(f"Path '{path}' does not contain a valid .py script")
 

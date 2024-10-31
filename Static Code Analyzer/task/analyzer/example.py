@@ -1,21 +1,24 @@
-print('What\'s your name?') # reading an input
-name = input();
-print(f'Hello, {name}');  # here is an obvious comment: this prints a greeting with a name
+def camel():
+    pass
 
+class camelClass():
+    pass
 
-very_big_number = 11_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000
-print(very_big_number)
+def CamelCase():
+    pass
 
+def snake():
+    pass
 
+def snake_case():
+    pass
 
-def some_fun():
+class Snake_Case():
+    pass
+
+class  CrazyClass():
+    attr: str
+
+def  some_fun():
     print('NO TODO HERE;;')
     pass; # Todo something
-
-print('hello')
-print('hello');
-print('hello');;;
-print('hello');  # hello
-# hello hello hello;
-greeting = 'hello;'
-print('hello')  # ;

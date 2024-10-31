@@ -16,7 +16,9 @@ class IssueType(enum.Enum):
     S004 = "At least two spaces required before inline comments"
     S005 = "TODO found"
     S006 = "More than two blank lines preceding a code line"
-
+    S007 = "Too many spaces after {0}"
+    S008 = "Class name {0} should be written in CamelCase"
+    S009 = "Function name {0} should be written in snake_case"
 
 @dataclass(frozen=True)
 class CodeIssue:
@@ -26,10 +28,15 @@ class CodeIssue:
         path:    The path of the analyzed file.
         line:    The code line this issue occurred on.
         type:    The :class:`IssueType` of the issue.
+        str_arg: Optional string argument for the message string.
     """
     path: str
     line: int
     type: IssueType
+    str_arg: Optional[str] = None
+
+    def has_msg_arg(self) -> bool:
+        return self.str_arg is not None
 
 class BaseCodeAnalyzer(ABC):
     """ Definition of an interface for static code analysis of python scripts.
@@ -61,6 +68,9 @@ class BaseCodeAnalyzer(ABC):
             IssueType.S003: self.semicolon,
             IssueType.S004: self.missing_spaces,
             IssueType.S005: self.todo,
+            IssueType.S007: self.too_many_spaces,
+            IssueType.S008: self.camel_case_class,
+            IssueType.S009: self.snake_case_fct,
         }
         self.bulk_analyzer: Dict[IssueType, callable] = {
             IssueType.S006: self.blank_lines,
@@ -116,6 +126,7 @@ class BaseCodeAnalyzer(ABC):
     @abstractmethod
     def missing_spaces(self, line_no: int, line: str) -> Optional[CodeIssue]:
         """ Create a Style Issue if the input line contains an inline comment which is not separated with two spaces.
+        :param line: The line to analyze.
         :param line_no: The line to analyze.
         :return: A :class:`CodeIssue` or :const:`None`.
         """
@@ -124,6 +135,36 @@ class BaseCodeAnalyzer(ABC):
     @abstractmethod
     def todo(self, line_no: int, line: str) -> Optional[CodeIssue]:
         """ Create a Style Issue if the input line contains a 'TODO' comment (any case).
+        :param line: The line to analyze.
+        :param line_no: The number of the line to analyze.
+        :return: A :class:`CodeIssue` or :const:`None`.
+        """
+        ...
+
+    @abstractmethod
+    def too_many_spaces(self, line_no: int, line: str)-> Optional[CodeIssue]:
+        """ Create a Style Issue if the line contains a class or function definition
+            keyword followed by more than one space.
+        :param line: The line to analyze.
+        :param line_no: The number of the line to analyze.
+        :return: A :class:`CodeIssue` or :const:`None`.
+        """
+        ...
+
+    @abstractmethod
+    def camel_case_class(self, line_no: int, line: str)-> Optional[CodeIssue]:
+        """ Create a Style Issue if the line contains a class definition
+            where the class name is not in CamelCase.
+        :param line: The line to analyze.
+        :param line_no: The number of the line to analyze.
+        :return: A :class:`CodeIssue` or :const:`None`.
+        """
+        ...
+
+    @abstractmethod
+    def snake_case_fct(self, line_no: int, line: str)-> Optional[CodeIssue]:
+        """ Create a Style Issue if the line contains a function definition
+            where the function name is not in snake_case.
         :param line: The line to analyze.
         :param line_no: The number of the line to analyze.
         :return: A :class:`CodeIssue` or :const:`None`.
