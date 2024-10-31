@@ -17,8 +17,8 @@ class IssueType(enum.Enum):
     S005 = "TODO found"
     S006 = "More than two blank lines preceding a code line"
     S007 = "Too many spaces after {0}"
-    S008 = "Class name {0} should be written in CamelCase"
-    S009 = "Function name {0} should be written in snake_case"
+    S008 = "Class name {0} should use CamelCase"
+    S009 = "Function name {0} should use snake_case"
 
 @dataclass(frozen=True)
 class CodeIssue:

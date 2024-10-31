@@ -64,8 +64,8 @@ class CodeAnalyzer(BaseCodeAnalyzer):
             return CodeIssue(self.path, line_no, IssueType.S005)
 
     def too_many_spaces(self, line_no: int, line: str) -> Optional[CodeIssue]:
-        """ Create a Style Issue if the line contains a class or function definition
-            keyword followed by more than one space.
+        """ Create a Style Issue if the line contains a class or function definition keyword
+        followed by more than one space.
         :param line: The line to analyze.
         :param line_no: The number of the line to analyze.
         :return: A :class:`CodeIssue` or :const:`None`.
@@ -81,19 +81,28 @@ class CodeAnalyzer(BaseCodeAnalyzer):
             return CodeIssue(self.path, line_no, IssueType.S007, name)
 
     def camel_case_class(self, line_no: int, line: str) -> Optional[CodeIssue]:
-        class_match = re.compile(r"class\s+(\w+)\(").match(line.strip())
+        """ Create a Style Issue if the line contains a class name not written in CamelCase.
+        :param line: The line to analyze.
+        :param line_no: The number of the line to analyze.
+        :return: A :class:`CodeIssue` or :const:`None`.
+        """
+        class_match = re.match(r"class\s+(\w+)", line.strip())
         if class_match:
             class_name = class_match.groups()[0]
-            no_camel_match = re.compile(r"([^A-Z][a-z]+)+")
-            if no_camel_match:
+            violation = re.match(r"((?!([A-Z][a-z]+))|\w+_\w+)", class_name)
+            if violation:
                 return CodeIssue(self.path, line_no, IssueType.S008, class_name)
 
     def snake_case_fct(self, line_no: int, line: str) -> Optional[CodeIssue]:
-        pattern = re.compile(r"def\s+(^[_a-z]+)")
-        match = pattern.match(line.strip())
-        if match:
-            name = match.groups()[0]
-            return CodeIssue(self.path, line_no, IssueType.S009, name)
+        """ Create a Style Issue if the line contains a function name not written in snake_case.
+        :param line: The line to analyze.
+        :param line_no: The number of the line to analyze.
+        :return: A :class:`CodeIssue` or :const:`None`.
+        """
+        fct_match = re.match(r"def\s+((\w*[A-Z]+\w*)+)", line.strip())
+        if fct_match:
+            fct_name = fct_match.groups()[0]
+            return CodeIssue(self.path, line_no, IssueType.S009, fct_name)
 
     def blank_lines(self) -> List[CodeIssue]:
         """ Create a Style Issue for every code preceded by more than two empty lines.
@@ -116,8 +125,8 @@ def print_issues(issues: List[CodeIssue]):
     """
     for issue in issues:
         if issue.str_arg:
-            print(f"arg = {issue.str_arg}")
-            print(f"{issue.path}: Line {issue.line}: {issue.type.name} {(issue.type.value).format(issue.str_arg)}")
+            arg = f"'{issue.str_arg}'"
+            print(f"{issue.path}: Line {issue.line}: {issue.type.name} {issue.type.value.format(arg)}")
         else:
             print(f"{issue.path}: Line {issue.line}: {issue.type.name} {issue.type.value}")
 
@@ -152,7 +161,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("path")
     path: str = parser.parse_args().path
-    issue_types : Set[IssueType] = {IssueType.S007, IssueType.S008, IssueType.S009}
+    issue_types : Set[IssueType] =  set(IssueType)
     if os.path.isfile(path) and path.endswith(".py"):
         analyze_single(path, issue_types)
     elif os.path.isdir(path):

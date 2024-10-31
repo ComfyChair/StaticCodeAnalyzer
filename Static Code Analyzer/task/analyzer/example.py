@@ -1,10 +1,14 @@
-def camel():
+
+def camelFunc():
     pass
 
-class camelClass():
+def CamelCaseFunc():
     pass
 
-def CamelCase():
+def Camel_case():
+    pass
+
+def  camel_cAse():
     pass
 
 def snake():
@@ -13,12 +17,15 @@ def snake():
 def snake_case():
     pass
 
-class Snake_Case():
-    pass
-
-class  CrazyClass():
-    attr: str
-
 def  some_fun():
     print('NO TODO HERE;;')
     pass; # Todo something
+
+
+class spaces:
+    pass
+
+
+class snake_case:
+    pass
+
