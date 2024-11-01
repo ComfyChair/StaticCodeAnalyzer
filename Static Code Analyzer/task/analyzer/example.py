@@ -1,31 +1,11 @@
+CONSTANT = 10
+names = ['John', 'Lora', 'Paul']
 
-def camelFunc():
-    pass
+def fun1(S=5, test=[], set={1, 2,}, dict={}):  # default argument value is mutable
+    VARIABLE = 10
+    string = 'string'
+    print(VARIABLE)
 
-def CamelCaseFunc():
-    pass
-
-def Camel_case():
-    pass
-
-def  camel_cAse():
-    pass
-
-def snake():
-    pass
-
-def snake_case():
-    pass
-
-def  some_fun():
-    print('NO TODO HERE;;')
-    pass; # Todo something
-
-
-class spaces:
-    pass
-
-
-class snake_case:
+class   ASuperClass(object):
     pass
 
