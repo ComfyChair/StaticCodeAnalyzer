@@ -1,9 +1,10 @@
 # code_analyzer_base.py module
 """Definition of the interface for static code analysis.
-Implementation: code_analyzer.py."""
+Implementation in code_analyzer.py."""
 import ast
 import enum
 import re
+import typing
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Dict, Tuple, Set, Optional, Type, Callable, Any
@@ -65,8 +66,7 @@ class BaseCodeAnalyzer(ABC):
         """
         self.path = path
         with open(path, "r") as file:
-            self.code_in_lines: List[str] = file.readlines()
-        self.codebase = "\n".join(self.code_in_lines)
+            self.codebase: str = file.read()
         self.found_issues: List[CodeIssue] = []
         self.single_line_analyzer: Dict[IssueType, Callable[[int, str], Optional[CodeIssue]]] = {
             IssueType.S001: self.long_line,
@@ -114,7 +114,7 @@ class BaseCodeAnalyzer(ABC):
         :param line: The line to split.
         :return: A :py:type:`tuple` containing the code and comment. """
         if '#' in line:
-            split_at_first: list[str] = line.split("#", maxsplit=2)
+            split_at_first: List[str] = line.split('#', maxsplit=2)
             return split_at_first[0], split_at_first[1]
         else:
             return line, ""
@@ -234,58 +234,66 @@ class BaseCodeAnalyzer(ABC):
     # ....................
     # Coordination methods
     # ....................
-    def analyze(self, issue_types: Set[IssueType]):
+    def analyze(self, requested_checks: Set[IssueType]):
         """ Initialize search for all possible IssueTypes.
-        :param issue_types: The set of :class:`IssueType` to analyze.
+        :param requested_checks: The set of :class:`IssueType` to analyze.
         """
-        self.line_by_line_analysis(issue_types)
-        self.bulk_analysis(issue_types)
-        self.ast_node_analysis(issue_types)
+        self.line_by_line_analysis(requested_checks)
+        self.bulk_analysis(requested_checks)
+        self.ast_node_analysis(requested_checks)
 
-    def bulk_analysis(self, issue_types: Set[IssueType]):
+    def bulk_analysis(self, requested_checks: Set[IssueType]):
         """ Initialize search for IssueTypes that need to scan the whole file.
         Found issues are collected in ``found_issues``.
-        :param issue_types: The set of :class:`IssueType` to analyze.
+        :param requested_checks: The set of :class:`IssueType` to analyze.
         """
-        selected_bulk_issues: Set[IssueType] = issue_types.intersection(self.bulk_analyzer.keys())
+        selected_bulk_issues: Set[IssueType] = requested_checks.intersection(self.bulk_analyzer.keys())
         for issue_type in selected_bulk_issues:
             self.found_issues.extend(self.bulk_analyzer[issue_type]())
 
-    def line_by_line_analysis(self, issue_types: Set[IssueType]):
+    def line_by_line_analysis(self, requested_checks: Set[IssueType]):
         """ Search codebase line by line for IssueTypes that are recognized from single code lines.
         Found issues are collected in ``found_issues``.
-        :param issue_types: The set of :class:`IssueType` to analyze.
+        :param requested_checks: The set of :class:`IssueType` to analyze.
         """
-        selected_line_issues: Set[IssueType] = issue_types.intersection(self.single_line_analyzer.keys())
-        for line_no, line in enumerate(self.code_in_lines, start=1):
+        selected_line_issues: Set[IssueType] = requested_checks.intersection(self.single_line_analyzer.keys())
+        for line_no, line in enumerate(self.codebase.splitlines(), start=1):
             for issue_type in selected_line_issues:
                 issue = self.single_line_analyzer[issue_type](line_no, line)
                 if issue:
                     self.found_issues.append(issue)
 
-    def ast_node_analysis(self, issue_types: Set[IssueType]):
-        """ Search codebase line by line for IssueTypes that are recognized from nodes of the abstract syntax tree.
-        Found issues are collected in ``found_issues``.
-        :param issue_types: The set of :class:`IssueType` to analyze.
+    def ast_node_analysis(self, requested_checks: Set[IssueType]):
+        """ Scan abstract syntax tree for nodes with possible issues and initiate their analysis.
+        :param requested_checks: The set of :class:`IssueType` to analyze.
         """
         # print(f"AST query types: {query_types}")
         tree = ast.parse(self.codebase)
         for node in ast.walk(tree):
-            # remember parent
+            # remember parent: relevant to filter out non-snake-case assignments of constants
             for child in ast.iter_child_nodes(node):
                 child.parent = node
-            # check nodes that have IssueTypes attached in ast.analyzer dictionary
+            # check nodes that have IssueTypes attached to them in the ast.analyzer dictionary
             node_type : Type[ast.AST] = type(node)
             if node_type in self.ast_analyzers:
-                node_analyzers: dict[IssueType, callable] = self.ast_analyzers[node_type]
-                selected_node_issues: Set[IssueType] = issue_types.intersection(node_analyzers.keys())
-                for issue_type in selected_node_issues:
-                    issue: CodeIssue | None | List[CodeIssue] = node_analyzers[issue_type](node)
-                    match issue:
-                        case CodeIssue():
-                            self.found_issues.append(issue)
-                        case list():
-                            self.found_issues.extend(issue)
+                self.check_node(node, requested_checks)
+
+    def check_node(self, node: ast.AST, requested_checks: Set[IssueType]):
+        """ Search for the issues of an ast node. Found issues are collected in ``found_issues``.
+        :param node: The node that is being analyzed.
+        :param requested_checks: The set of :class:`IssueType` to analyze.
+        """
+        # filter IssueTypes according to user selection in issue_types
+        node_analyzers: dict[IssueType, callable] = self.ast_analyzers[type(node)]
+        selected_node_issues: Set[IssueType] = requested_checks.intersection(node_analyzers.keys())
+        # analyze node for each IssueType and append issues to found_issues
+        for issue_type in selected_node_issues:
+            issue: CodeIssue | None | List[CodeIssue] = node_analyzers[issue_type](node)
+            match issue:
+                case CodeIssue():
+                    self.found_issues.append(issue)
+                case list():
+                    self.found_issues.extend(issue)
 
     # Return the results
     def get_issues(self) -> List[CodeIssue]:

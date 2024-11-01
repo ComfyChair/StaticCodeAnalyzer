@@ -83,7 +83,7 @@ class CodeAnalyzer(BaseCodeAnalyzer):
         """
         found_issues: List[CodeIssue] = []
         count_blank = 0
-        for line_no, line in enumerate(self.code_in_lines, start=1):
+        for line_no, line in enumerate(self.codebase.splitlines(), start=1):
             if line.strip() == "":
                 count_blank += 1
             else:  # non-empty line
@@ -160,13 +160,13 @@ class CodeAnalyzer(BaseCodeAnalyzer):
         if is_value_mutable or type(node.parent) is ast.FunctionDef:
             violating_var_names = []
             for variable in node.targets:
-                match (type(variable)):
-                    case ast.Name:
+                match variable:
+                    case ast.Name():
                         variable: ast.Name
                         this_var_name : str = variable.id
                         if re.match(self.snake_violation_pattern, this_var_name):
                             violating_var_names.append(this_var_name)
-                    case collections.Iterable:
+                    case list() | tuple():
                         variable: collections.Iterable
                         for content in variable:
                             this_inner_name: str = content.id
