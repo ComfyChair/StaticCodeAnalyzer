@@ -5,7 +5,7 @@ import collections
 import os.path
 import argparse
 import re
-from typing import List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple, Any, Type
 from typing_extensions import override
 
 from code_analyzer_base import BaseCodeAnalyzer, IssueType, CodeIssue
@@ -79,7 +79,7 @@ class CodeAnalyzer(BaseCodeAnalyzer):
     @override
     def blank_lines(self) -> List[CodeIssue]:
         """ Return a Style Issue for every code preceded by more than two empty lines.
-        :return: The list of found :class:`CodeIssue` objects.
+        :return: The list of found :class:`CodeIssue` objects or an empty list.
         """
         found_issues: List[CodeIssue] = []
         count_blank = 0
@@ -138,7 +138,7 @@ class CodeAnalyzer(BaseCodeAnalyzer):
         """ Return a Style Issue if the line contains a function definition
             where one or more arguments are not in snake_case.
         :param node: The function definition node whose arguments are being analyzed.
-        :return: A :class:`CodeIssue` or :const:`None`.
+        :return: A list of :class:`CodeIssue` objects or an empty list.
         """
         violating_arg_names = []
         for arg in node.args.args:
@@ -153,7 +153,7 @@ class CodeAnalyzer(BaseCodeAnalyzer):
         """ Return a Style Issue if the line contains a variable definition,
             where the variable is not in snake_case.
         :param node: The assignment node that is being analyzed.
-        :return: A :class:`CodeIssue` or :const:`None`.
+        :return: A list of :class:`CodeIssue` objects or an empty list.
         """
 
         is_value_mutable = node.value in self.mutable_types
@@ -180,7 +180,7 @@ class CodeAnalyzer(BaseCodeAnalyzer):
         """ Return a Style Issue if the line contains a function definition
             where a default value is mutable (list, dictionary, or set) .
         :param node: The function definition node whose argument default values are being analyzed.
-        :return: A :class:`CodeIssue` or :const:`None`.
+        :return: A :class:`CodeIssue` or :const:`None` objects or an empty list.
         """
         defaults = node.args.defaults
         for default in defaults:
@@ -225,12 +225,37 @@ def analyze_multi(directory: str, issue_types: Set[IssueType]):
     print_issues(issues)
 
 
+def filter_issue_types(exclude_arg: str) -> Set[IssueType]:
+    """ Filter all available IssueTypes by a list of codes and return the resulting set.
+
+    :param exclude_arg: String of the form "S007, S009, S002" or similar representing a list of issue codes
+            that should not be checked.
+    :return:
+    """
+    issue_types: Set[IssueType] = set(IssueType)
+    if exclude_arg:
+        exclude_list: List[str] = exclude_arg.split(',')
+        for exclude_str in exclude_list:
+            issue_type_name : str = exclude_str.strip().upper()
+            try:
+                to_exclude: IssueType = IssueType[issue_type_name]
+                print(f"Excluding issue type {to_exclude.name}")
+                issue_types.remove(to_exclude)
+            except KeyError:
+                print(f"Invalid argument: There is no issue type with code {exclude_str.strip()}")
+        print()
+    return issue_types
+
+
 def main():
     """ Main method. """
     parser = argparse.ArgumentParser()
     parser.add_argument("path")
+    parser.add_argument("--exclude", required=False,
+                        help='exclude IssueTypes by providing a list of their codes, e.g. -- exclude "S001,S010,S006"')
+
+    issue_types = filter_issue_types(parser.parse_args().exclude)
     path: str = parser.parse_args().path
-    issue_types : Set[IssueType] =  set(IssueType)
     if os.path.isfile(path) and path.endswith(".py"):
         analyze_single(path, issue_types)
     elif os.path.isdir(path):

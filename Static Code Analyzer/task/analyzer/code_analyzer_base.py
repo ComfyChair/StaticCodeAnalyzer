@@ -48,11 +48,13 @@ class BaseCodeAnalyzer(ABC):
     
     Attributes:
         path:                   The path to the file being analyzed.
-        codebase:               The code being analyzed as a list of code line strings.
-        single_line_analyzer:    A static dictionary mapping each :class:`IssueType` that can be detected from a single
-                                line to its analyzing function. 
-        bulk_analyzer:           A static dictionary mapping each :class:`IssueType` that can only be detected
-                                when analyzing multiple lines to its analyzing function. 
+        codebase:               The code being analyzed as a single string.
+        single_line_analyzer:   A static dictionary mapping `IssueType`s that are recognized from
+                                a single code line to their analyzing functions.
+        bulk_analyzer:          A static dictionary mapping `IssueType`s that are recognized
+                                while parsing multiple code lines to their analyzing function.
+        ast_analyzers:          A static dictionary mapping `IssueType`s that are recognized while
+                                inspecting nodes of the abstract syntax tree to their analyzing function.
         found_issues:           A list of collected :class:`.CodeIssue` instances.
     """
     MAX_LINES = 79
@@ -210,7 +212,7 @@ class BaseCodeAnalyzer(ABC):
     @abstractmethod
     def snake_case_args(self, node: ast.FunctionDef)-> List[CodeIssue]:
         """ Return a Style Issue for each argument in the function definition that is not in snake_case.
-        :return: A :class:`CodeIssue` or :const:`None`.
+        :return: A list of :class:`CodeIssue` objects or an empty list.
         """
         ...
 
@@ -218,7 +220,7 @@ class BaseCodeAnalyzer(ABC):
     @abstractmethod
     def snake_case_var(self, node: ast.Assign) -> List[CodeIssue]:
         """ Return a Style Issue for each variable name in the assignment that is not in snake_case.
-        :return: A :class:`CodeIssue` or :const:`None`.
+        :return: A list of :class:`CodeIssue` objects or an empty list.
         """
         ...
 
